@@ -34,6 +34,21 @@ export function buildGraph(data) {
 }
 
 /**
+ * 确认/编辑本体（用户在前端编辑后回传保存）
+ * @param {Object} data - { project_id, ontology: { entity_types, edge_types } }
+ * @returns {Promise}
+ */
+export function confirmOntology(data) {
+  return requestWithRetry(() =>
+    service({
+      url: '/api/graph/ontology/confirm',
+      method: 'post',
+      data
+    })
+  )
+}
+
+/**
  * 查询任务状态
  * @param {String} taskId - 任务ID
  * @returns {Promise}

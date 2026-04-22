@@ -26,8 +26,8 @@
     "files": "个文件"
   },
   "meta": {
-    "title": "MiroFish - 预测万物",
-    "description": "MiroFish - 社交媒体舆论模拟系统"
+    "title": "Federal_KG - 物质科学认知引擎",
+    "description": "Federal_KG - 面向物质科学的联邦式科研知识图谱引擎"
   },
   "nav": {
     "visitGithub": "访问我们的Github主页"
@@ -38,7 +38,7 @@
     "heroTitle1": "上传任意报告",
     "heroTitle2": "即刻推演未来",
     "heroDesc": "即使只有一段文字，{brand} 也能基于其中的现实种子，全自动生成与之对应的至多{agentScale}构成的平行世界。通过上帝视角注入变量，在复杂的群体交互中寻找动态环境下的{optimalSolution}",
-    "heroDescBrand": "MiroFish",
+    "heroDescBrand": "Federal_KG",
     "heroDescAgentScale": "百万级Agent",
     "heroDescOptimalSolution": "\"局部最优解\"",
     "slogan": "让未来在 Agent 群中预演，让决策在百战后胜出",
@@ -65,9 +65,16 @@
     "dragToUpload": "拖拽文件上传",
     "orBrowse": "或点击浏览文件系统",
     "inputParams": "输入参数",
-    "simulationPrompt": ">_ 02 / 模拟提示词",
-    "promptPlaceholder": "// 用自然语言输入模拟或预测需求（例.武大若发布撤销肖某处分的公告，会引发什么舆情走向）",
-    "engineBadge": "引擎: MiroFish-V1.0",
+    "domainLabel": "02 / 领域选择",
+    "domainMeta": "多领域联邦（规划中）",
+    "domainMaterials": "材料",
+    "domainPhysics": "物理",
+    "domainChemistry": "化学",
+    "domainAerospace": "航天",
+    "domainOther": "其他",
+    "simulationPrompt": ">_ 03 / 研究目标 / 领域说明",
+    "promptPlaceholder": "// 用自然语言描述你的研究目标或领域范围（例：以钙钛矿太阳能电池为核心，关注掺杂剂、晶体结构、光电属性及其制备工艺之间的关系）",
+    "engineBadge": "引擎: Federal_KG-V0.1",
     "startEngine": "启动引擎",
     "initializing": "初始化中..."
   },
@@ -95,7 +102,20 @@
     "creating": "创建中...",
     "enterEnvSetup": "进入环境搭建",
     "createSimulationFailed": "创建模拟失败: {error}",
-    "createSimulationException": "创建模拟异常: {error}"
+    "createSimulationException": "创建模拟异常: {error}",
+    "confirmOntology": "确认本体 & 构建图谱",
+    "confirmingOntology": "正在确认本体...",
+    "ontologyAwaitingConfirm": "本体已生成，请确认后构建图谱",
+    "confirmOntologyFailed": "确认本体失败: {error}",
+    "entityTypesLabel": "实体类型",
+    "edgeTypesLabel": "关系类型",
+    "entityNamePlaceholder": "实体名 (PascalCase)",
+    "edgeNamePlaceholder": "关系名 (UPPER_SNAKE_CASE)",
+    "descriptionPlaceholder": "描述",
+    "addEntityType": "新增实体类型",
+    "addEdgeType": "新增关系类型",
+    "delete": "删除",
+    "editHint": "提交时后端会自动规范化命名（PascalCase / UPPER_SNAKE_CASE）、去重并补齐 Material / Concept 兜底类型。Zep 限制最多 10 个实体与 10 个关系。"
   },
   "step2": {
     "simInstanceInit": "模拟实例初始化",

@@ -26,8 +26,8 @@
     "files": "files"
   },
   "meta": {
-    "title": "MiroFish - Predict Everything",
-    "description": "MiroFish - Social Media Opinion Simulation System"
+    "title": "Federal_KG - Materials Science Cognitive Engine",
+    "description": "Federal_KG - A federated scientific knowledge graph engine for materials science"
   },
   "nav": {
     "visitGithub": "Visit our Github page"
@@ -38,7 +38,7 @@
     "heroTitle1": "Upload Reports,",
     "heroTitle2": "Predict the Future",
     "heroDesc": "From a single document, {brand} extracts reality seeds to auto-generate a parallel world with up to {agentScale}. Inject variables from a god's-eye view to find the {optimalSolution} in complex group dynamics.",
-    "heroDescBrand": "MiroFish",
+    "heroDescBrand": "Federal_KG",
     "heroDescAgentScale": "million-scale Agents",
     "heroDescOptimalSolution": "\"local optimum\"",
     "slogan": "Let Agents rehearse the future, let decisions prevail",
@@ -65,9 +65,16 @@
     "dragToUpload": "Drag files to upload",
     "orBrowse": "or click to browse files",
     "inputParams": "Input Parameters",
-    "simulationPrompt": ">_ 02 / Simulation Prompt",
-    "promptPlaceholder": "// Describe your simulation or prediction requirement in natural language",
-    "engineBadge": "Engine: MiroFish-V1.0",
+    "domainLabel": "02 / Domain",
+    "domainMeta": "Multi-domain federation (planned)",
+    "domainMaterials": "Materials",
+    "domainPhysics": "Physics",
+    "domainChemistry": "Chemistry",
+    "domainAerospace": "Aerospace",
+    "domainOther": "Other",
+    "simulationPrompt": ">_ 03 / Research Goal / Domain Brief",
+    "promptPlaceholder": "// Describe your research goal or domain scope in natural language (e.g. focus on perovskite solar cells, the relationships between dopants, crystal structures, photovoltaic properties, and fabrication methods)",
+    "engineBadge": "Engine: Federal_KG-V0.1",
     "startEngine": "Start Engine",
     "initializing": "Initializing..."
   },
@@ -95,7 +102,20 @@
     "creating": "Creating...",
     "enterEnvSetup": "Enter Environment Setup",
     "createSimulationFailed": "Failed to create simulation: {error}",
-    "createSimulationException": "Simulation creation error: {error}"
+    "createSimulationException": "Simulation creation error: {error}",
+    "confirmOntology": "Confirm Ontology & Build Graph",
+    "confirmingOntology": "Confirming ontology...",
+    "ontologyAwaitingConfirm": "Ontology generated. Please confirm to build the graph.",
+    "confirmOntologyFailed": "Failed to confirm ontology: {error}",
+    "entityTypesLabel": "Entity Types",
+    "edgeTypesLabel": "Relation Types",
+    "entityNamePlaceholder": "Entity name (PascalCase)",
+    "edgeNamePlaceholder": "Relation name (UPPER_SNAKE_CASE)",
+    "descriptionPlaceholder": "Description",
+    "addEntityType": "Add entity type",
+    "addEdgeType": "Add relation type",
+    "delete": "Delete",
+    "editHint": "On submission the backend normalizes names (PascalCase / UPPER_SNAKE_CASE), removes duplicates, and ensures Material / Concept fallbacks. Zep allows up to 10 entity and 10 relation types."
   },
   "step2": {
     "simInstanceInit": "Simulation Instance Initialization",

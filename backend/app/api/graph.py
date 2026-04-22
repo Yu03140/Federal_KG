@@ -255,6 +255,98 @@ def generate_ontology():
         }), 500
 
 
+# ============== 接口1.5：确认/编辑本体 ==============
+
+@graph_bp.route('/ontology/confirm', methods=['POST'])
+def confirm_ontology():
+    """
+    接口1.5：用户确认/编辑 schema 后，持久化到 Project
+
+    请求（JSON）：
+        {
+            "project_id": "proj_xxxx",
+            "ontology": {
+                "entity_types": [...],
+                "edge_types": [...]
+            }
+        }
+
+    返回：
+        {
+            "success": true,
+            "data": {
+                "project_id": "proj_xxxx",
+                "ontology": <规范化后的 ontology>
+            }
+        }
+    """
+    try:
+        logger.info("=== 确认/编辑本体定义 ===")
+
+        data = request.get_json() or {}
+        project_id = data.get('project_id')
+        ontology = data.get('ontology')
+
+        if not project_id:
+            return jsonify({
+                "success": False,
+                "error": t('api.requireProjectId')
+            }), 400
+
+        if not isinstance(ontology, dict):
+            return jsonify({
+                "success": False,
+                "error": "ontology must be an object with entity_types and edge_types"
+            }), 400
+
+        project = ProjectManager.get_project(project_id)
+        if not project:
+            return jsonify({
+                "success": False,
+                "error": t('api.projectNotFound', id=project_id)
+            }), 404
+
+        if project.status != ProjectStatus.ONTOLOGY_GENERATED:
+            return jsonify({
+                "success": False,
+                "error": f"Project status must be ONTOLOGY_GENERATED to confirm ontology, current: {project.status.value}"
+            }), 400
+
+        # 复用 OntologyGenerator 的规范化逻辑（PascalCase、UPPER_SNAKE_CASE、去重、最多10、兜底补齐）
+        generator = OntologyGenerator()
+        normalized = generator.validate_and_process({
+            "entity_types": ontology.get("entity_types", []),
+            "edge_types": ontology.get("edge_types", []),
+            "analysis_summary": project.analysis_summary or ""
+        })
+
+        project.ontology = {
+            "entity_types": normalized.get("entity_types", []),
+            "edge_types": normalized.get("edge_types", [])
+        }
+        ProjectManager.save_project(project)
+        logger.info(
+            f"本体确认保存: project_id={project_id}, "
+            f"entities={len(project.ontology['entity_types'])}, "
+            f"edges={len(project.ontology['edge_types'])}"
+        )
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "project_id": project_id,
+                "ontology": project.ontology
+            }
+        })
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 # ============== 接口2：构建图谱 ==============
 
 @graph_bp.route('/build', methods=['POST'])

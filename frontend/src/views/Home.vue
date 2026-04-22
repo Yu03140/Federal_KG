@@ -2,7 +2,7 @@
   <div class="home-container">
     <!-- 顶部导航栏 -->
     <nav class="navbar">
-      <div class="nav-brand">MIROFISH</div>
+      <div class="nav-brand">FEDERAL_KG</div>
       <div class="nav-links">
         <LanguageSwitcher />
         <a href="https://github.com/666ghj/MiroFish" target="_blank" class="github-link">
@@ -172,6 +172,27 @@
               <span>{{ $t('home.inputParams') }}</span>
             </div>
 
+            <!-- 领域选择（预留，后续阶段接入多领域联邦） -->
+            <div class="console-section">
+              <div class="console-header">
+                <span class="console-label">{{ $t('home.domainLabel') }}</span>
+                <span class="console-meta">{{ $t('home.domainMeta') }}</span>
+              </div>
+              <div class="domain-grid">
+                <button
+                  v-for="opt in domainOptions"
+                  :key="opt.value"
+                  type="button"
+                  class="domain-chip"
+                  :class="{ 'selected': formData.domain === opt.value }"
+                  :disabled="loading"
+                  @click="formData.domain = opt.value"
+                >
+                  {{ $t(opt.labelKey) }}
+                </button>
+              </div>
+            </div>
+
             <!-- 输入区域 -->
             <div class="console-section">
               <div class="console-header">
@@ -221,8 +242,18 @@ const router = useRouter()
 
 // 表单数据
 const formData = ref({
-  simulationRequirement: ''
+  simulationRequirement: '',
+  domain: 'materials'
 })
+
+// 领域候选（预留；当前 Phase 1 不提交给后端，仅作为 UI 占位 / 本地状态）
+const domainOptions = [
+  { value: 'materials', labelKey: 'home.domainMaterials' },
+  { value: 'physics',   labelKey: 'home.domainPhysics' },
+  { value: 'chemistry', labelKey: 'home.domainChemistry' },
+  { value: 'aerospace', labelKey: 'home.domainAerospace' },
+  { value: 'other',     labelKey: 'home.domainOther' }
+]
 
 // 文件列表
 const files = ref([])
@@ -777,6 +808,41 @@ const startSimulation = () => {
   display: flex;
   align-items: center;
   margin: 10px 0;
+}
+
+/* 领域选择 */
+.domain-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.domain-chip {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  background: #FAFAFA;
+  border: 1px solid #DDD;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.03em;
+}
+
+.domain-chip:hover:not(:disabled) {
+  border-color: #999;
+  background: #F0F0F0;
+}
+
+.domain-chip.selected {
+  background: var(--black);
+  color: var(--white);
+  border-color: var(--black);
+}
+
+.domain-chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .console-divider::before,

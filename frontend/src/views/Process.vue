@@ -2,7 +2,7 @@
   <div class="process-page">
     <!-- 顶部导航栏 -->
     <nav class="navbar">
-      <div class="nav-brand" @click="goHome">MIROFISH</div>
+      <div class="nav-brand" @click="goHome">FEDERAL_KG</div>
       
       <!-- 中间步骤指示器 -->
       <div class="nav-center">
@@ -259,43 +259,116 @@
                 </div>
               </div>
               
-              <!-- 已生成的本体信息 -->
+              <!-- 已生成的本体信息（可编辑） -->
               <div class="detail-section" v-if="projectData?.ontology">
-                <div class="detail-label">生成的实体类型 ({{ projectData.ontology.entity_types?.length || 0 }})</div>
-                <div class="entity-tags">
-                  <span 
-                    v-for="entity in projectData.ontology.entity_types" 
-                    :key="entity.name"
-                    class="entity-tag"
-                  >
-                    {{ entity.name }}
-                  </span>
+                <div class="detail-label">
+                  {{ $t('step1.entityTypesLabel') }} ({{ projectData.ontology.entity_types?.length || 0 }})
+                </div>
+                <div class="ontology-edit-list">
+                  <div v-for="(entity, idx) in projectData.ontology.entity_types"
+                       :key="'ent-' + idx"
+                       class="ontology-edit-item">
+                    <input
+                      type="text"
+                      class="ontology-input"
+                      :disabled="!isOntologyEditable"
+                      :placeholder="$t('step1.entityNamePlaceholder')"
+                      v-model="entity.name"
+                    />
+                    <input
+                      type="text"
+                      class="ontology-input desc"
+                      :disabled="!isOntologyEditable"
+                      :placeholder="$t('step1.descriptionPlaceholder')"
+                      v-model="entity.description"
+                    />
+                    <button
+                      class="ontology-del-btn"
+                      :disabled="!isOntologyEditable"
+                      :title="$t('step1.delete')"
+                      @click="removeEntityType(idx)"
+                    >×</button>
+                  </div>
+                  <button
+                    v-if="isOntologyEditable"
+                    class="ontology-add-btn"
+                    :disabled="(projectData.ontology.entity_types?.length || 0) >= 10"
+                    @click="addEntityType"
+                  >+ {{ $t('step1.addEntityType') }}</button>
                 </div>
               </div>
-              
+
               <div class="detail-section" v-if="projectData?.ontology">
-                <div class="detail-label">生成的关系类型 ({{ projectData.ontology.relation_types?.length || 0 }})</div>
-                <div class="relation-list">
-                  <div 
-                    v-for="(rel, idx) in projectData.ontology.relation_types?.slice(0, 5) || []" 
-                    :key="idx"
-                    class="relation-item"
-                  >
-                    <span class="rel-source">{{ rel.source_type }}</span>
+                <div class="detail-label">
+                  {{ $t('step1.edgeTypesLabel') }} ({{ projectData.ontology.edge_types?.length || 0 }})
+                </div>
+                <div class="ontology-edit-list">
+                  <div v-for="(edge, idx) in projectData.ontology.edge_types"
+                       :key="'edge-' + idx"
+                       class="ontology-edit-item edge">
+                    <input
+                      type="text"
+                      class="ontology-input"
+                      :disabled="!isOntologyEditable"
+                      :placeholder="$t('step1.edgeNamePlaceholder')"
+                      v-model="edge.name"
+                    />
+                    <select
+                      class="ontology-input select"
+                      :disabled="!isOntologyEditable"
+                      :value="edgeSource(edge)"
+                      @change="setEdgeSource(edge, $event.target.value)"
+                    >
+                      <option v-for="e in projectData.ontology.entity_types"
+                              :key="'src-' + idx + '-' + e.name"
+                              :value="e.name">{{ e.name }}</option>
+                    </select>
                     <span class="rel-arrow">→</span>
-                    <span class="rel-name">{{ rel.name }}</span>
-                    <span class="rel-arrow">→</span>
-                    <span class="rel-target">{{ rel.target_type }}</span>
+                    <select
+                      class="ontology-input select"
+                      :disabled="!isOntologyEditable"
+                      :value="edgeTarget(edge)"
+                      @change="setEdgeTarget(edge, $event.target.value)"
+                    >
+                      <option v-for="e in projectData.ontology.entity_types"
+                              :key="'tgt-' + idx + '-' + e.name"
+                              :value="e.name">{{ e.name }}</option>
+                    </select>
+                    <button
+                      class="ontology-del-btn"
+                      :disabled="!isOntologyEditable"
+                      :title="$t('step1.delete')"
+                      @click="removeEdgeType(idx)"
+                    >×</button>
                   </div>
-                  <div v-if="(projectData.ontology.relation_types?.length || 0) > 5" class="relation-more">
-                    +{{ projectData.ontology.relation_types.length - 5 }} 更多关系...
-                  </div>
+                  <button
+                    v-if="isOntologyEditable"
+                    class="ontology-add-btn"
+                    :disabled="(projectData.ontology.edge_types?.length || 0) >= 10 || (projectData.ontology.entity_types?.length || 0) < 1"
+                    @click="addEdgeType"
+                  >+ {{ $t('step1.addEdgeType') }}</button>
+                </div>
+                <div class="edit-hint" v-if="isOntologyEditable">
+                  {{ $t('step1.editHint') }}
                 </div>
               </div>
               
               <!-- 等待状态 -->
               <div class="detail-section waiting-state" v-if="!projectData?.ontology && currentPhase === 0 && !ontologyProgress">
                 <div class="waiting-hint">等待本体生成...</div>
+              </div>
+
+              <!-- 确认本体 & 构建图谱 -->
+              <div class="detail-section confirm-ontology-section"
+                   v-if="projectData?.ontology && currentPhase === 0 && !projectData.graph_id">
+                <div class="confirm-hint">{{ $t('step1.ontologyAwaitingConfirm') }}</div>
+                <button class="confirm-btn"
+                        :disabled="confirming"
+                        @click="handleConfirmAndBuild">
+                  <span v-if="confirming" class="spinner-sm"></span>
+                  {{ confirming ? $t('step1.confirmingOntology') : $t('step1.confirmOntology') }}
+                  <span class="btn-arrow" v-if="!confirming">→</span>
+                </button>
               </div>
             </div>
           </div>
@@ -358,27 +431,8 @@
             </div>
           </div>
 
-          <!-- 阶段3: 完成 -->
-          <div class="process-phase" :class="{ 'active': currentPhase === 2, 'completed': currentPhase > 2 }">
-            <div class="phase-header">
-              <span class="phase-num">03</span>
-              <div class="phase-info">
-                <div class="phase-title">构建完成</div>
-                <div class="phase-api">准备进入下一步骤</div>
-              </div>
-              <span class="phase-status" :class="getPhaseStatusClass(2)">
-                {{ getPhaseStatusText(2) }}
-              </span>
-            </div>
-          </div>
-
-          <!-- 下一步按钮 -->
-          <div class="next-step-section" v-if="currentPhase >= 2">
-            <button class="next-step-btn" @click="goToNextStep" :disabled="currentPhase < 2">
-              进入环境搭建
-              <span class="btn-arrow">→</span>
-            </button>
-          </div>
+          <!-- Phase 1 流程到此结束。旧的"阶段3: 完成"卡片与"进入环境搭建"按钮已隐藏，
+               待后续阶段（检索 / 联邦 / 下游模块）接入后再恢复相应入口。 -->
         </div>
 
         <!-- 项目信息面板 -->
@@ -414,12 +468,17 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { generateOntology, getProject, buildGraph, getTaskStatus, getGraphData } from '../api/graph'
+import { useI18n } from 'vue-i18n'
+import { generateOntology, getProject, buildGraph, getTaskStatus, getGraphData, confirmOntology } from '../api/graph'
 import { getPendingUpload, clearPendingUpload } from '../store/pendingUpload'
 import * as d3 from 'd3'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
+
+// 确认本体/构建图谱按钮状态
+const confirming = ref(false)
 
 // 当前项目ID（可能从'new'变为实际ID）
 const currentProjectId = ref(route.params.projectId)
@@ -483,6 +542,96 @@ const goHome = () => {
 const goToNextStep = () => {
   // TODO: 进入环境搭建步骤
   alert('环境搭建功能开发中...')
+}
+
+// 确认本体并启动图谱构建
+const handleConfirmAndBuild = async () => {
+  if (!currentProjectId.value || !projectData.value?.ontology) {
+    return
+  }
+  confirming.value = true
+  try {
+    const res = await confirmOntology({
+      project_id: currentProjectId.value,
+      ontology: projectData.value.ontology
+    })
+    if (!res.success) {
+      error.value = t('step1.confirmOntologyFailed', { error: res.error || 'unknown' })
+      return
+    }
+    // 使用后端规范化后的 ontology 更新本地展示
+    projectData.value = { ...projectData.value, ontology: res.data.ontology }
+    await startBuildGraph()
+  } catch (err) {
+    console.error('Confirm ontology error:', err)
+    error.value = t('step1.confirmOntologyFailed', { error: err.message || 'unknown' })
+  } finally {
+    confirming.value = false
+  }
+}
+
+// ====== Ontology 编辑辅助 ======
+const isOntologyEditable = computed(() => {
+  // 仅在"本体已生成、尚未建图、未在确认中"时允许编辑
+  return !!projectData.value?.ontology
+    && currentPhase.value === 0
+    && !projectData.value?.graph_id
+    && !confirming.value
+})
+
+const edgeSource = (edge) => edge?.source_targets?.[0]?.source || ''
+const edgeTarget = (edge) => edge?.source_targets?.[0]?.target || ''
+
+const setEdgeSource = (edge, value) => {
+  if (!Array.isArray(edge.source_targets) || edge.source_targets.length === 0) {
+    edge.source_targets = [{ source: value, target: value }]
+  } else {
+    edge.source_targets[0].source = value
+  }
+}
+
+const setEdgeTarget = (edge, value) => {
+  if (!Array.isArray(edge.source_targets) || edge.source_targets.length === 0) {
+    edge.source_targets = [{ source: value, target: value }]
+  } else {
+    edge.source_targets[0].target = value
+  }
+}
+
+const addEntityType = () => {
+  if (!projectData.value?.ontology) return
+  const list = projectData.value.ontology.entity_types || []
+  if (list.length >= 10) return
+  list.push({
+    name: 'NewEntity',
+    description: '',
+    attributes: [],
+    examples: []
+  })
+}
+
+const removeEntityType = (idx) => {
+  if (!projectData.value?.ontology) return
+  projectData.value.ontology.entity_types.splice(idx, 1)
+}
+
+const addEdgeType = () => {
+  if (!projectData.value?.ontology) return
+  const edges = projectData.value.ontology.edge_types || []
+  const entities = projectData.value.ontology.entity_types || []
+  if (edges.length >= 10 || entities.length === 0) return
+  const first = entities[0].name
+  edges.push({
+    name: 'NEW_RELATION',
+    description: '',
+    source_targets: [{ source: first, target: first }],
+    attributes: []
+  })
+}
+
+const removeEdgeType = (idx) => {
+  if (!projectData.value?.ontology) return
+  projectData.value.ontology.edge_types.splice(idx, 1)
 }
 
 const toggleFullScreen = () => {
@@ -604,9 +753,8 @@ const handleNewProject = async () => {
       })
       
       ontologyProgress.value = null
-      
-      // 自动开始图谱构建
-      await startBuildGraph()
+
+      // 本体已生成，等待用户确认；不再自动构建图谱
     } else {
       error.value = response.error || '本体生成失败'
     }
@@ -627,12 +775,10 @@ const loadProject = async () => {
     if (response.success) {
       projectData.value = response.data
       updatePhaseByStatus(response.data.status)
-      
-      // 自动开始图谱构建
-      if (response.data.status === 'ontology_generated' && !response.data.graph_id) {
-        await startBuildGraph()
-      }
-      
+
+      // 本体已生成且未建图：保持在本体阶段，等待用户点击"确认本体 & 构建图谱"
+      // （原行为是自动开始构建，现改为显式确认）
+
       // 继续轮询构建中的任务
       if (response.data.status === 'graph_building' && response.data.graph_build_task_id) {
         currentPhase.value = 1
@@ -1887,6 +2033,160 @@ onUnmounted(() => {
 .waiting-hint {
   font-size: 0.85rem;
   color: #999;
+}
+
+/* 确认本体 & 构建 */
+.confirm-ontology-section {
+  margin-top: 16px;
+  padding: 14px;
+  background: #FFF5F2;
+  border: 1px solid #FFE0D6;
+}
+
+/* 可编辑本体列表 */
+.ontology-edit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ontology-edit-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #FAFAFA;
+  border: 1px solid #E0E0E0;
+}
+
+.ontology-edit-item.edge {
+  flex-wrap: wrap;
+}
+
+.ontology-input {
+  flex: 1;
+  min-width: 80px;
+  padding: 4px 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  background: #fff;
+  border: 1px solid #DDD;
+  color: #333;
+  outline: none;
+}
+
+.ontology-input.desc {
+  flex: 2;
+}
+
+.ontology-input.select {
+  min-width: 110px;
+  flex: 0 1 auto;
+  cursor: pointer;
+}
+
+.ontology-input:focus:not(:disabled) {
+  border-color: #FF6B35;
+}
+
+.ontology-input:disabled {
+  background: #F5F5F5;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.ontology-del-btn {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid #DDD;
+  color: #999;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ontology-del-btn:hover:not(:disabled) {
+  border-color: #C5283D;
+  color: #C5283D;
+  background: #FFF5F6;
+}
+
+.ontology-del-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ontology-add-btn {
+  margin-top: 4px;
+  padding: 6px 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  background: transparent;
+  border: 1px dashed #BBB;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ontology-add-btn:hover:not(:disabled) {
+  border-color: #FF6B35;
+  color: #FF6B35;
+}
+
+.ontology-add-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.edit-hint {
+  margin-top: 8px;
+  font-size: 0.72rem;
+  color: #999;
+  line-height: 1.5;
+}
+
+.confirm-hint {
+  font-size: 0.85rem;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.confirm-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #000;
+  color: #fff;
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.confirm-btn:hover:not(:disabled) {
+  background: #FF6B35;
+}
+
+.confirm-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.spinner-sm {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 /* 进度条 */
