@@ -13,7 +13,6 @@
 [![GitHub Stars](https://img.shields.io/github/stars/666ghj/MiroFish?style=flat-square&color=DAA520)](https://github.com/666ghj/MiroFish/stargazers)
 [![GitHub Watchers](https://img.shields.io/github/watchers/666ghj/MiroFish?style=flat-square)](https://github.com/666ghj/MiroFish/watchers)
 [![GitHub Forks](https://img.shields.io/github/forks/666ghj/MiroFish?style=flat-square)](https://github.com/666ghj/MiroFish/network)
-[![Docker](https://img.shields.io/badge/Docker-Build-2496ED?style=flat-square&logo=docker&logoColor=white)](https://hub.docker.com/)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/666ghj/MiroFish)
 
 [![Discord](https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord&logoColor=white)](http://discord.gg/ePf5aPaHnA)
@@ -161,20 +160,6 @@ npm run dev
 npm run backend   # 仅启动后端
 npm run frontend  # 仅启动前端
 ```
-
-### 二、Docker 部署
-
-```bash
-# 1. 配置环境变量（同源码部署）
-cp .env.example .env
-
-# 2. 拉取镜像并启动
-docker compose up -d
-```
-
-默认会读取根目录下的 `.env`，并映射端口 `3000（前端）/5001（后端）`
-
-> 在 `docker-compose.yml` 中已通过注释提供加速镜像地址，可按需替换
 
 ## 📬 更多交流
 

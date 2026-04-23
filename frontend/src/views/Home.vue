@@ -5,9 +5,6 @@
       <div class="nav-brand">FEDERAL_KG</div>
       <div class="nav-links">
         <LanguageSwitcher />
-        <a href="https://github.com/666ghj/MiroFish" target="_blank" class="github-link">
-          {{ $t('nav.visitGithub') }} <span class="arrow">↗</span>
-        </a>
       </div>
     </nav>
 
@@ -19,12 +16,12 @@
             <span class="orange-tag">{{ $t('home.tagline') }}</span>
             <span class="version-text">{{ $t('home.version') }}</span>
           </div>
-          
+
           <h1 class="main-title">
             {{ $t('home.heroTitle1') }}<br>
             <span class="gradient-text">{{ $t('home.heroTitle2') }}</span>
           </h1>
-          
+
           <div class="hero-desc">
             <p>
               <i18n-t keypath="home.heroDesc" tag="span">
@@ -37,16 +34,11 @@
               {{ $t('home.slogan') }}<span class="blinking-cursor">_</span>
             </p>
           </div>
-           
+
           <div class="decoration-square"></div>
         </div>
-        
+
         <div class="hero-right">
-          <!-- Logo 区域 -->
-          <div class="logo-container">
-            <img src="../assets/logo/MiroFish_logo_left.jpeg" alt="MiroFish Logo" class="hero-logo" />
-          </div>
-          
           <button class="scroll-down-btn" @click="scrollToBottom">
             ↓
           </button>
@@ -112,10 +104,13 @@
                   <div class="step-desc">{{ $t('home.step04Desc') }}</div>
                 </div>
               </div>
-              <div class="workflow-item">
+              <div class="workflow-item planned">
                 <span class="step-num">05</span>
                 <div class="step-info">
-                  <div class="step-title">{{ $t('home.step05Title') }}</div>
+                  <div class="step-title">
+                    {{ $t('home.step05Title') }}
+                    <span class="planned-badge">{{ $t('home.step05Badge') }}</span>
+                  </div>
                   <div class="step-desc">{{ $t('home.step05Desc') }}</div>
                 </div>
               </div>
@@ -428,7 +423,8 @@ const startSimulation = () => {
 
 .hero-left {
   flex: 1;
-  padding-right: 60px;
+  padding-right: 40px;
+  max-width: 960px;
 }
 
 .tag-row {
@@ -534,23 +530,11 @@ const startSimulation = () => {
 }
 
 .hero-right {
-  flex: 0.8;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  align-items: flex-end;
-}
-
-.logo-container {
-  width: 100%;
-  display: flex;
   justify-content: flex-end;
-  padding-right: 40px;
-}
-
-.hero-logo {
-  max-width: 500px; /* 调整logo大小 */
-  width: 100%;
+  align-items: flex-end;
 }
 
 .scroll-down-btn {
@@ -696,6 +680,24 @@ const startSimulation = () => {
 .step-desc {
   font-size: 0.85rem;
   color: var(--gray-text);
+}
+
+.workflow-item.planned {
+  opacity: 0.55;
+}
+
+.planned-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #999;
+  background: transparent;
+  border: 1px solid #CCC;
+  vertical-align: middle;
 }
 
 /* 右侧交互控制台 */
@@ -953,11 +955,7 @@ const startSimulation = () => {
   .hero-left {
     padding-right: 0;
     margin-bottom: 40px;
-  }
-  
-  .hero-logo {
-    max-width: 200px;
-    margin-bottom: 20px;
+    max-width: 100%;
   }
 }
 </style>
