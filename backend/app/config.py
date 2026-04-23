@@ -32,8 +32,14 @@ class Config:
     LLM_BASE_URL = os.environ.get('LLM_BASE_URL', 'https://api.openai.com/v1')
     LLM_MODEL_NAME = os.environ.get('LLM_MODEL_NAME', 'gpt-4o-mini')
     
-    # Zep配置
+    # Zep配置（下游 agent/simulation 保留，主建图链路不再依赖）
     ZEP_API_KEY = os.environ.get('ZEP_API_KEY')
+
+    # Neo4j配置（主建图后端）
+    NEO4J_URI = os.environ.get('NEO4J_URI', 'bolt://localhost:7687')
+    NEO4J_USER = os.environ.get('NEO4J_USER', 'neo4j')
+    NEO4J_PASSWORD = os.environ.get('NEO4J_PASSWORD')
+    NEO4J_DATABASE = os.environ.get('NEO4J_DATABASE', 'neo4j')
     
     # 文件上传配置
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB
@@ -41,8 +47,8 @@ class Config:
     ALLOWED_EXTENSIONS = {'pdf', 'md', 'txt', 'markdown'}
     
     # 文本处理配置
-    DEFAULT_CHUNK_SIZE = 2000  # 默认切块大小（Phase 1: 面向长科研文献，降低 Zep episode 配额占用）
-    DEFAULT_CHUNK_OVERLAP = 200  # 默认重叠大小（随 chunk_size 同比例放大）
+    DEFAULT_CHUNK_SIZE = 3000  # 面向长科研文献，大块保留上下文完整性，减少 LLM 调用次数
+    DEFAULT_CHUNK_OVERLAP = 300  # 10% 重叠
     
     # OASIS模拟配置
     OASIS_DEFAULT_MAX_ROUNDS = int(os.environ.get('OASIS_DEFAULT_MAX_ROUNDS', '10'))
@@ -69,7 +75,7 @@ class Config:
         errors = []
         if not cls.LLM_API_KEY:
             errors.append("LLM_API_KEY 未配置")
-        if not cls.ZEP_API_KEY:
-            errors.append("ZEP_API_KEY 未配置")
+        if not cls.NEO4J_PASSWORD:
+            errors.append("NEO4J_PASSWORD 未配置（参考 .env.example 启动本地 Neo4j）")
         return errors
 

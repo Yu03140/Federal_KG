@@ -81,8 +81,8 @@ class ZepEntityReader:
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or Config.ZEP_API_KEY
         if not self.api_key:
-            raise ValueError("ZEP_API_KEY 未配置")
-        
+            raise ValueError("ZEP_API_KEY 未配置（主建图已迁移至 Neo4j，此模块为下游 agent 链路遗留）")
+
         self.client = Zep(api_key=self.api_key)
     
     def _call_with_retry(

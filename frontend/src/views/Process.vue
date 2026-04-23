@@ -6,8 +6,8 @@
       
       <!-- 中间步骤指示器 -->
       <div class="nav-center">
-        <div class="step-badge">STEP 01</div>
-        <div class="step-name">图谱构建</div>
+        <div class="step-badge">STEP {{ String(Math.max(currentPhase + 1, 1)).padStart(2, '0') }}</div>
+        <div class="step-name">{{ currentPhase === 2 ? '图谱去重' : (currentPhase >= 3 ? '构建完成' : (currentPhase === 1 ? '图谱构建' : '本体生成')) }}</div>
       </div>
 
       <div class="nav-status">
@@ -246,7 +246,7 @@
               <div class="detail-section">
                 <div class="detail-label">接口说明</div>
                 <div class="detail-content">
-                  上传文档后，LLM分析文档内容，自动生成适合舆论模拟的本体结构（实体类型 + 关系类型）
+                  上传文档后，LLM分析文档内容，自动生成适合的本体结构（实体类型 + 关系类型）
                 </div>
               </div>
               
@@ -431,6 +431,127 @@
             </div>
           </div>
 
+          <!-- 阶段3: 图谱去重 -->
+          <div class="process-phase" :class="{ 'active': currentPhase === 2, 'completed': currentPhase > 2 }">
+            <div class="phase-header">
+              <span class="phase-num">03</span>
+              <div class="phase-info">
+                <div class="phase-title">图谱去重</div>
+                <div class="phase-api">/api/graph/dedup</div>
+              </div>
+              <span class="phase-status" :class="getPhaseStatusClass(2)">
+                {{ getPhaseStatusText(2) }}
+              </span>
+            </div>
+
+            <div class="phase-detail">
+              <div class="detail-section">
+                <div class="detail-label">接口说明</div>
+                <div class="detail-content">
+                  合并同一图谱内名字相似且类型相同的节点（例如 TiO₂ / TiO2 / titanium dioxide）。不依赖 APOC，基于 difflib 相似度 + 并查集做传递闭包，将被合并节点的边重定向到保留节点。
+                </div>
+              </div>
+
+              <div class="detail-section waiting-state" v-if="currentPhase < 2">
+                <div class="waiting-hint">等待图谱构建完成...</div>
+              </div>
+
+              <template v-if="currentPhase >= 2">
+                <!-- 阈值控制 -->
+                <div class="detail-section">
+                  <div class="detail-label">相似度阈值</div>
+                  <div class="dedup-threshold-row">
+                    <input
+                      type="range" min="0.75" max="0.98" step="0.01"
+                      v-model.number="dedupThreshold"
+                      :disabled="dedupRunning || currentPhase > 2"
+                      class="dedup-slider"
+                    />
+                    <span class="dedup-threshold-value">{{ dedupThreshold.toFixed(2) }}</span>
+                  </div>
+                  <div class="dedup-threshold-hint">
+                    越高越严格（0.95 只合并几乎一样；0.88 推荐；0.80 可能误合并相关但不同的实体）
+                  </div>
+                </div>
+
+                <!-- 预览 / 结果 -->
+                <div class="detail-section" v-if="dedupReport">
+                  <div class="detail-label">
+                    {{ dedupReport._mode === 'executed' ? '合并结果' : '预览计划' }}
+                  </div>
+                  <div class="build-result">
+                    <div class="result-item">
+                      <span class="result-value">{{ dedupReport.nodes_before }} → {{ dedupReport.nodes_after }}</span>
+                      <span class="result-label">节点</span>
+                    </div>
+                    <div class="result-item">
+                      <span class="result-value">{{ dedupReport.edges_before }} → {{ dedupReport.edges_after }}</span>
+                      <span class="result-label">关系边</span>
+                    </div>
+                    <div class="result-item">
+                      <span class="result-value">{{ dedupReport.groups_merged }}</span>
+                      <span class="result-label">合并组</span>
+                    </div>
+                  </div>
+
+                  <div class="dedup-merges" v-if="dedupReport.merges && dedupReport.merges.length">
+                    <div class="dedup-merges-hint">
+                      {{ dedupReport._mode === 'executed' ? '以下节点已合并：' : '以下节点将被合并（预览）：' }}
+                    </div>
+                    <div class="dedup-merge-item" v-for="(m, idx) in dedupReport.merges" :key="idx">
+                      <div class="dedup-keep">
+                        <span class="dedup-tag keep">保留</span>
+                        <span class="dedup-keep-name">{{ m.keep.name }}</span>
+                        <span class="dedup-keep-type">{{ m.keep.entity_type }}</span>
+                      </div>
+                      <div class="dedup-drops">
+                        <span
+                          v-for="d in m.drops" :key="d.uuid"
+                          class="dedup-drop-name" :title="d.uuid"
+                        >← {{ d.name }}</span>
+                      </div>
+                    </div>
+                    <div class="dedup-merges-more" v-if="dedupReport.groups_merged > dedupReport.merges.length">
+                      ...还有 {{ dedupReport.groups_merged - dedupReport.merges.length }} 组未显示
+                    </div>
+                  </div>
+                  <div class="dedup-merges-empty" v-else>
+                    未发现需要合并的节点。可降低阈值再试。
+                  </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="detail-section dedup-actions" v-if="currentPhase === 2">
+                  <button
+                    class="dedup-btn preview"
+                    @click="previewDedup"
+                    :disabled="dedupRunning || !projectData?.graph_id"
+                  >
+                    {{ dedupRunning && dedupReport?._mode !== 'executed' ? '预览中...' : '预览合并' }}
+                  </button>
+                  <button
+                    class="dedup-btn execute"
+                    @click="executeDedup"
+                    :disabled="dedupRunning || !projectData?.graph_id"
+                  >
+                    {{ dedupRunning ? '执行中...' : '执行去重' }}
+                  </button>
+                  <button
+                    class="dedup-btn skip"
+                    @click="skipDedup"
+                    :disabled="dedupRunning"
+                  >
+                    跳过
+                  </button>
+                </div>
+
+                <div class="detail-section" v-if="currentPhase > 2 && dedupExecuted">
+                  <div class="dedup-done-hint">✓ 已完成去重</div>
+                </div>
+              </template>
+            </div>
+          </div>
+
           <!-- Phase 1 流程到此结束。旧的"阶段3: 完成"卡片与"进入环境搭建"按钮已隐藏，
                待后续阶段（检索 / 联邦 / 下游模块）接入后再恢复相应入口。 -->
         </div>
@@ -469,7 +590,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { generateOntology, getProject, buildGraph, getTaskStatus, getGraphData, confirmOntology } from '../api/graph'
+import { generateOntology, getProject, buildGraph, getTaskStatus, getGraphData, confirmOntology, dedupGraph } from '../api/graph'
 import { getPendingUpload, clearPendingUpload } from '../store/pendingUpload'
 import * as d3 from 'd3'
 
@@ -491,9 +612,15 @@ const projectData = ref(null)
 const graphData = ref(null)
 const buildProgress = ref(null)
 const ontologyProgress = ref(null) // 本体生成进度
-const currentPhase = ref(-1) // -1: 上传中, 0: 本体生成中, 1: 图谱构建, 2: 完成
+const currentPhase = ref(-1) // -1: 上传中, 0: 本体生成中, 1: 图谱构建, 2: 图谱去重, 3: 完成
 const selectedItem = ref(null) // 选中的节点或边
 const isFullScreen = ref(false)
+
+// 去重相关状态
+const dedupThreshold = ref(0.88)
+const dedupRunning = ref(false)
+const dedupReport = ref(null)      // 最近一次 preview 或 execute 的结果
+const dedupExecuted = ref(false)   // 当前会话是否已真正执行过去重
 
 // DOM引用
 const graphContainer = ref(null)
@@ -505,13 +632,14 @@ let pollTimer = null
 // 计算属性
 const statusClass = computed(() => {
   if (error.value) return 'error'
-  if (currentPhase.value >= 2) return 'completed'
+  if (currentPhase.value >= 3) return 'completed'
   return 'processing'
 })
 
 const statusText = computed(() => {
   if (error.value) return '构建失败'
-  if (currentPhase.value >= 2) return '构建完成'
+  if (currentPhase.value >= 3) return '构建完成'
+  if (currentPhase.value === 2) return '图谱去重'
   if (currentPhase.value === 1) return '图谱构建中'
   if (currentPhase.value === 0) return '本体生成中'
   return '初始化中'
@@ -694,9 +822,80 @@ const getPhaseStatusText = (phase) => {
     if (phase === 1 && buildProgress.value) {
       return `${buildProgress.value.progress}%`
     }
+    if (phase === 2 && dedupRunning.value) return '去重中'
     return '进行中'
   }
   return '等待中'
+}
+
+// ===== 图谱去重 =====
+const _dedupStorageKey = (pid) => `fkg_dedup_done_${pid}`
+const _isDedupDone = () => {
+  const pid = currentProjectId.value
+  if (!pid) return false
+  try { return localStorage.getItem(_dedupStorageKey(pid)) === '1' } catch { return false }
+}
+const _markDedupDone = () => {
+  const pid = currentProjectId.value
+  if (!pid) return
+  try { localStorage.setItem(_dedupStorageKey(pid), '1') } catch {}
+}
+
+const previewDedup = async () => {
+  if (!projectData.value?.graph_id) return
+  try {
+    dedupRunning.value = true
+    const resp = await dedupGraph(projectData.value.graph_id, {
+      threshold: dedupThreshold.value,
+      dryRun: true,
+    })
+    if (resp.success) {
+      dedupReport.value = { ...resp.data, _mode: 'preview' }
+    } else {
+      alert('预览失败：' + (resp.error || '未知错误'))
+    }
+  } catch (e) {
+    console.error('dedup preview error', e)
+    alert('预览失败：' + (e.message || e))
+  } finally {
+    dedupRunning.value = false
+  }
+}
+
+const executeDedup = async () => {
+  if (!projectData.value?.graph_id) return
+  if (!confirm(`确认以阈值 ${dedupThreshold.value} 合并重复节点？此操作会直接修改 Neo4j 数据。`)) return
+  try {
+    dedupRunning.value = true
+    const resp = await dedupGraph(projectData.value.graph_id, {
+      threshold: dedupThreshold.value,
+      dryRun: false,
+    })
+    if (resp.success) {
+      dedupReport.value = { ...resp.data, _mode: 'executed' }
+      dedupExecuted.value = true
+      _markDedupDone()
+      // 刷新图谱数据与项目节点/边计数
+      await loadGraph(projectData.value.graph_id)
+      try {
+        const pr = await getProject(currentProjectId.value)
+        if (pr.success) projectData.value = pr.data
+      } catch {}
+      currentPhase.value = 3
+    } else {
+      alert('去重失败：' + (resp.error || '未知错误'))
+    }
+  } catch (e) {
+    console.error('dedup execute error', e)
+    alert('去重失败：' + (e.message || e))
+  } finally {
+    dedupRunning.value = false
+  }
+}
+
+const skipDedup = () => {
+  _markDedupDone()
+  currentPhase.value = 3
 }
 
 // 初始化 - 处理新建项目或加载已有项目
@@ -787,7 +986,12 @@ const loadProject = async () => {
       
       // 加载已完成的图谱
       if (response.data.status === 'graph_completed' && response.data.graph_id) {
-        currentPhase.value = 2
+        if (_isDedupDone()) {
+          currentPhase.value = 3
+          dedupExecuted.value = true
+        } else {
+          currentPhase.value = 2
+        }
         await loadGraph(response.data.graph_id)
       }
     } else {
@@ -811,7 +1015,13 @@ const updatePhaseByStatus = (status) => {
       currentPhase.value = 1
       break
     case 'graph_completed':
-      currentPhase.value = 2
+      // 图谱已建完但去重是第三步——如果 localStorage 里标记过跳过/执行过则直接进终态
+      if (_isDedupDone()) {
+        currentPhase.value = 3
+        dedupExecuted.value = true
+      } else {
+        currentPhase.value = 2
+      }
       break
     case 'failed':
       error.value = projectData.value?.error || '处理失败'
@@ -944,10 +1154,16 @@ const pollTaskStatus = async (taskId) => {
       
       if (task.status === 'completed') {
         console.log('✅ 图谱构建完成，正在加载完整数据...')
-        
+
         stopPolling()
         stopGraphPolling()
-        currentPhase.value = 2
+        // 图谱构建完成 → 进入去重阶段（phase 2）；若之前已标记完成则跳到终态
+        if (_isDedupDone()) {
+          currentPhase.value = 3
+          dedupExecuted.value = true
+        } else {
+          currentPhase.value = 2
+        }
         
         // 更新进度显示为完成状态
         buildProgress.value = {
@@ -2364,5 +2580,149 @@ onUnmounted(() => {
   .right-panel.hidden {
       display: none;
   }
+}
+
+/* ===== 去重阶段样式 ===== */
+.dedup-threshold-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+.dedup-slider {
+  flex: 1;
+  accent-color: #2563eb;
+}
+.dedup-threshold-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #111827;
+  min-width: 40px;
+  text-align: right;
+}
+.dedup-threshold-hint {
+  margin-top: 6px;
+  font-size: 0.7rem;
+  color: #9ca3af;
+  line-height: 1.4;
+}
+
+.dedup-merges {
+  margin-top: 10px;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid #f3f4f6;
+  border-radius: 4px;
+  padding: 8px;
+  background: #fafafa;
+}
+.dedup-merges-hint {
+  font-size: 0.72rem;
+  color: #6b7280;
+  margin-bottom: 6px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.dedup-merge-item {
+  padding: 6px 8px;
+  border-bottom: 1px dashed #e5e7eb;
+}
+.dedup-merge-item:last-child { border-bottom: none; }
+.dedup-keep {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+}
+.dedup-tag.keep {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  padding: 1px 5px;
+  background: #d1fae5;
+  color: #065f46;
+  border-radius: 2px;
+}
+.dedup-keep-name {
+  font-weight: 600;
+  color: #111827;
+}
+.dedup-keep-type {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+.dedup-drops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+  padding-left: 14px;
+}
+.dedup-drop-name {
+  font-size: 0.72rem;
+  color: #9ca3af;
+  font-family: 'JetBrains Mono', monospace;
+  text-decoration: line-through;
+}
+.dedup-merges-more {
+  text-align: center;
+  font-size: 0.7rem;
+  color: #9ca3af;
+  padding: 4px;
+}
+.dedup-merges-empty {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  text-align: center;
+  padding: 12px;
+  background: #fafafa;
+  border: 1px dashed #e5e7eb;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.dedup-actions {
+  display: flex;
+  gap: 8px;
+}
+.dedup-btn {
+  flex: 1;
+  padding: 8px 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.dedup-btn:hover:not(:disabled) {
+  border-color: #111827;
+  transform: translateY(-1px);
+}
+.dedup-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.dedup-btn.preview { border-color: #93c5fd; color: #1d4ed8; }
+.dedup-btn.preview:hover:not(:disabled) { background: #eff6ff; border-color: #1d4ed8; }
+.dedup-btn.execute { border-color: #111827; background: #111827; color: #fff; }
+.dedup-btn.execute:hover:not(:disabled) { background: #000; }
+.dedup-btn.skip { color: #9ca3af; }
+
+.dedup-done-hint {
+  font-size: 0.8rem;
+  color: #10b981;
+  font-weight: 600;
+  padding: 8px;
+  text-align: center;
+  background: #ecfdf5;
+  border-radius: 4px;
 }
 </style>

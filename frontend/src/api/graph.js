@@ -83,3 +83,45 @@ export function getProject(projectId) {
     method: 'get'
   })
 }
+
+/**
+ * 列出所有项目（首页最近建图记录）
+ * @param {Number} limit - 返回数量上限
+ * @returns {Promise}
+ */
+export function listProjects(limit = 20) {
+  return service({
+    url: '/api/graph/project/list',
+    method: 'get',
+    params: { limit }
+  })
+}
+
+/**
+ * 删除项目
+ * @param {String} projectId
+ */
+export function deleteProject(projectId) {
+  return service({
+    url: `/api/graph/project/${projectId}`,
+    method: 'delete'
+  })
+}
+
+/**
+ * 图谱去重：合并名字相似且类型相同的节点
+ * @param {String} graphId
+ * @param {Object} options - { threshold, dryRun }
+ * @returns {Promise}
+ */
+export function dedupGraph(graphId, { threshold = 0.88, dryRun = false } = {}) {
+  return service({
+    url: `/api/graph/dedup/${graphId}`,
+    method: 'post',
+    params: {
+      threshold,
+      dry_run: dryRun ? 1 : 0,
+    },
+    timeout: 10 * 60 * 1000, // 去重可能较慢，10 分钟超时
+  })
+}

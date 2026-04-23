@@ -59,6 +59,17 @@ def create_app(config_class=Config):
     # 注册蓝图
     from .api import graph_bp
     app.register_blueprint(graph_bp, url_prefix='/api/graph')
+
+    # 初始化 Neo4j（创建约束和索引，幂等）
+    if should_log_startup:
+        try:
+            from .services.neo4j_client import get_neo4j
+            neo4j = get_neo4j()
+            neo4j.verify_connectivity()
+            neo4j.ensure_schema()
+            logger.info("Neo4j 连接成功，schema 已就绪")
+        except Exception as e:
+            logger.warning(f"Neo4j 初始化失败：{e}。建图功能将不可用，请检查 docker compose 与 .env 配置。")
     
     # 健康检查
     @app.route('/health')

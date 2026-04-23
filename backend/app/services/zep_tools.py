@@ -425,8 +425,8 @@ class ZepToolsService:
     def __init__(self, api_key: Optional[str] = None, llm_client: Optional[LLMClient] = None):
         self.api_key = api_key or Config.ZEP_API_KEY
         if not self.api_key:
-            raise ValueError("ZEP_API_KEY 未配置")
-        
+            raise ValueError("ZEP_API_KEY 未配置（下游 agent 模块仍依赖 Zep；本周主建图已迁至 Neo4j，此模块将在后续迁移）")
+
         self.client = Zep(api_key=self.api_key)
         # LLM客户端用于InsightForge生成子问题
         self._llm_client = llm_client

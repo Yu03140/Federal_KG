@@ -241,7 +241,7 @@ class ZepGraphMemoryUpdater:
         self.api_key = api_key or Config.ZEP_API_KEY
         
         if not self.api_key:
-            raise ValueError("ZEP_API_KEY未配置")
+            raise ValueError("ZEP_API_KEY 未配置（主建图已迁移至 Neo4j，此模块为 OASIS 仿真活动写入链路遗留）")
         
         self.client = Zep(api_key=self.api_key)
         

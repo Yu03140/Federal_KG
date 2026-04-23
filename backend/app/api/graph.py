@@ -374,11 +374,13 @@ def build_graph():
     """
     try:
         logger.info("=== 开始构建图谱 ===")
-        
-        # 检查配置
+
+        # 检查配置（Neo4j 主建图链路）
         errors = []
-        if not Config.ZEP_API_KEY:
-            errors.append(t('api.zepApiKeyMissing'))
+        if not Config.NEO4J_PASSWORD:
+            errors.append("NEO4J_PASSWORD 未配置，请参考 .env.example 并启动本地 Neo4j（docker compose up -d）")
+        if not Config.LLM_API_KEY:
+            errors.append("LLM_API_KEY 未配置")
         if errors:
             logger.error(f"配置错误: {errors}")
             return jsonify({
@@ -479,7 +481,7 @@ def build_graph():
                 )
                 
                 # 创建图谱构建服务
-                builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
+                builder = GraphBuilderService()
                 
                 # 分块
                 task_manager.update_task(
@@ -560,13 +562,16 @@ def build_graph():
                     progress=95
                 )
                 graph_data = builder.get_graph_data(graph_id)
-                
-                # 更新项目状态
-                project.status = ProjectStatus.GRAPH_COMPLETED
-                ProjectManager.save_project(project)
-                
+
                 node_count = graph_data.get("node_count", 0)
                 edge_count = graph_data.get("edge_count", 0)
+
+                # 更新项目状态
+                project.status = ProjectStatus.GRAPH_COMPLETED
+                project.node_count = node_count
+                project.edge_count = edge_count
+                ProjectManager.save_project(project)
+
                 build_logger.info(f"[{task_id}] 图谱构建完成: graph_id={graph_id}, 节点={node_count}, 边={edge_count}")
                 
                 # 完成
@@ -664,13 +669,13 @@ def get_graph_data(graph_id: str):
     获取图谱数据（节点和边）
     """
     try:
-        if not Config.ZEP_API_KEY:
+        if not Config.NEO4J_PASSWORD:
             return jsonify({
                 "success": False,
-                "error": t('api.zepApiKeyMissing')
+                "error": "NEO4J_PASSWORD 未配置"
             }), 500
-        
-        builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
+
+        builder = GraphBuilderService()
         graph_data = builder.get_graph_data(graph_id)
         
         return jsonify({
@@ -692,23 +697,52 @@ def delete_graph(graph_id: str):
     删除Zep图谱
     """
     try:
-        if not Config.ZEP_API_KEY:
+        if not Config.NEO4J_PASSWORD:
             return jsonify({
                 "success": False,
-                "error": t('api.zepApiKeyMissing')
+                "error": "NEO4J_PASSWORD 未配置"
             }), 500
-        
-        builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
+
+        builder = GraphBuilderService()
         builder.delete_graph(graph_id)
-        
+
         return jsonify({
             "success": True,
             "message": t('api.graphDeleted', id=graph_id)
         })
-        
+
     except Exception as e:
         return jsonify({
             "success": False,
             "error": str(e),
             "traceback": traceback.format_exc()
+        }), 500
+
+
+@graph_bp.route('/dedup/<graph_id>', methods=['POST'])
+def dedup_graph(graph_id: str):
+    """
+    合并同一图谱内"名字相似 + 类型相同"的节点。
+
+    Query params:
+        threshold: 相似度阈值 0-1（默认 0.88）
+        dry_run: 1 表示只返回计划不改动数据
+    """
+    try:
+        if not Config.NEO4J_PASSWORD:
+            return jsonify({"success": False, "error": "NEO4J_PASSWORD 未配置"}), 500
+
+        threshold = float(request.args.get('threshold', 0.88))
+        dry_run = request.args.get('dry_run', '0') in ('1', 'true', 'True')
+
+        from ..services.graph_dedup import GraphDedupService
+        report = GraphDedupService().run(graph_id, threshold=threshold, dry_run=dry_run)
+
+        return jsonify({"success": True, "data": report.to_dict()})
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
         }), 500

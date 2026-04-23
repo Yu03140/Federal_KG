@@ -152,36 +152,27 @@
 
             <!-- 导航按钮 -->
             <div class="modal-actions">
-              <button 
-                class="modal-btn btn-project" 
+              <button
+                class="modal-btn btn-project"
                 @click="goToProject"
                 :disabled="!selectedProject.project_id"
               >
                 <span class="btn-step">Step1</span>
                 <span class="btn-icon">◇</span>
-                <span class="btn-text">{{ $t('history.step1Button') }}</span>
+                <span class="btn-text">查看 / 构建图谱</span>
               </button>
-              <button 
-                class="modal-btn btn-simulation" 
-                @click="goToSimulation"
+              <button
+                class="modal-btn btn-delete"
+                @click="handleDeleteProject"
               >
-                <span class="btn-step">Step2</span>
-                <span class="btn-icon">◈</span>
-                <span class="btn-text">{{ $t('history.step2Button') }}</span>
-              </button>
-              <button 
-                class="modal-btn btn-report" 
-                @click="goToReport"
-                :disabled="!selectedProject.report_id"
-              >
-                <span class="btn-step">Step4</span>
-                <span class="btn-icon">◆</span>
-                <span class="btn-text">{{ $t('history.step4Button') }}</span>
+                <span class="btn-step">Delete</span>
+                <span class="btn-icon">✕</span>
+                <span class="btn-text">删除项目</span>
               </button>
             </div>
-            <!-- 不可回放提示 -->
+            <!-- 提示 -->
             <div class="modal-playback-hint">
-              <span class="hint-text">{{ $t('history.replayHint') }}</span>
+              <span class="hint-text">点击 Step1 进入流程页查看文献、本体与图谱可视化</span>
             </div>
           </div>
         </div>
@@ -194,7 +185,7 @@
 import { ref, computed, onMounted, onUnmounted, onActivated, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { getSimulationHistory } from '../api/simulation'
+import { listProjects, deleteProject } from '../api/graph'
 
 const router = useRouter()
 const route = useRoute()
@@ -290,21 +281,13 @@ const getCardStyle = (index) => {
   }
 }
 
-// 根据轮数进度获取样式类
-const getProgressClass = (simulation) => {
-  const current = simulation.current_round || 0
-  const total = simulation.total_rounds || 0
-  
-  if (total === 0 || current === 0) {
-    // 未开始
-    return 'not-started'
-  } else if (current >= total) {
-    // 已完成
-    return 'completed'
-  } else {
-    // 进行中
-    return 'in-progress'
-  }
+// 根据项目状态获取进度样式类
+const getProgressClass = (project) => {
+  const status = project.status
+  if (status === 'graph_completed') return 'completed'
+  if (status === 'failed') return 'not-started'
+  if (status === 'graph_building' || status === 'ontology_generated' || status === 'created') return 'in-progress'
+  return 'not-started'
 }
 
 // 格式化日期（只显示日期部分）
@@ -344,19 +327,23 @@ const getSimulationTitle = (requirement) => {
   return requirement.length > 20 ? title + '...' : title
 }
 
-// 格式化 simulation_id 显示（截取前6位）
-const formatSimulationId = (simulationId) => {
-  if (!simulationId) return 'SIM_UNKNOWN'
-  const prefix = simulationId.replace('sim_', '').slice(0, 6)
-  return `SIM_${prefix.toUpperCase()}`
+// 格式化 project_id 显示（截取前6位）
+const formatSimulationId = (id) => {
+  if (!id) return 'PROJ_UNKNOWN'
+  const prefix = String(id).replace(/^proj_/, '').slice(0, 6)
+  return `PROJ_${prefix.toUpperCase()}`
 }
 
-// 格式化轮数显示（当前轮/总轮数）
-const formatRounds = (simulation) => {
-  const current = simulation.current_round || 0
-  const total = simulation.total_rounds || 0
-  if (total === 0) return t('history.notStarted')
-  return t('history.roundsProgress', { current, total })
+// 底部显示：已完成 → 节点/边统计；否则显示状态文本
+const formatRounds = (project) => {
+  const status = project.status
+  if (status === 'graph_completed') {
+    return `${project.node_count || 0} 节点 · ${project.edge_count || 0} 边`
+  }
+  if (status === 'graph_building') return '图谱构建中'
+  if (status === 'ontology_generated') return '待构建'
+  if (status === 'failed') return '构建失败'
+  return '已创建'
 }
 
 // 获取文件类型（用于样式）
@@ -414,25 +401,18 @@ const goToProject = () => {
   }
 }
 
-// 导航到环境配置页面（Simulation）
-const goToSimulation = () => {
-  if (selectedProject.value?.simulation_id) {
-    router.push({
-      name: 'Simulation',
-      params: { simulationId: selectedProject.value.simulation_id }
-    })
+// 删除当前项目
+const handleDeleteProject = async () => {
+  const proj = selectedProject.value
+  if (!proj?.project_id) return
+  if (!confirm(`确认删除项目 ${formatSimulationId(proj.project_id)}？此操作会同时从 Neo4j 中清理图谱数据。`)) return
+  try {
+    await deleteProject(proj.project_id)
+    projects.value = projects.value.filter(p => p.project_id !== proj.project_id)
     closeModal()
-  }
-}
-
-// 导航到分析报告页面（Report）
-const goToReport = () => {
-  if (selectedProject.value?.report_id) {
-    router.push({
-      name: 'Report',
-      params: { reportId: selectedProject.value.report_id }
-    })
-    closeModal()
+  } catch (e) {
+    console.error('删除失败', e)
+    alert('删除失败：' + (e?.message || e))
   }
 }
 
@@ -440,9 +420,9 @@ const goToReport = () => {
 const loadHistory = async () => {
   try {
     loading.value = true
-    const response = await getSimulationHistory(20)
+    const response = await listProjects(20)
     if (response.success) {
-      projects.value = response.data || []
+      projects.value = (response.data || []).map(adaptProject)
     }
   } catch (error) {
     console.error('加载历史项目失败:', error)
@@ -451,6 +431,18 @@ const loadHistory = async () => {
     loading.value = false
   }
 }
+
+// 将后端 Project 转成模板所需的字段形态
+const adaptProject = (p) => ({
+  ...p,
+  simulation_id: p.project_id,
+  simulation_requirement: p.simulation_requirement || p.name || '知识图谱构建',
+  report_id: null,
+  files: (p.files || []).map(f => ({
+    filename: f.original_filename || f.filename || f.saved_filename || 'unknown',
+    size: f.size || 0,
+  })),
+})
 
 // 初始化 IntersectionObserver
 const initObserver = () => {
@@ -1317,6 +1309,9 @@ onUnmounted(() => {
 .modal-btn.btn-project .btn-icon { color: #3B82F6; }
 .modal-btn.btn-simulation .btn-icon { color: #F59E0B; }
 .modal-btn.btn-report .btn-icon { color: #10B981; }
+.modal-btn.btn-delete .btn-icon { color: #EF4444; }
+.modal-btn.btn-delete:hover:not(:disabled) { border-color: #EF4444; }
+.modal-btn.btn-delete:hover:not(:disabled) .btn-text { color: #EF4444; }
 
 .modal-btn:hover:not(:disabled) .btn-text {
   color: #111827;
